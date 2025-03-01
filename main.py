@@ -3,6 +3,7 @@ import threading
 import time
 import sys
 
+from gui import PoopStrapGUI
 from pront import pront
 
 print(f"Running Python from: {sys.executable}")
@@ -10,25 +11,24 @@ print(f"Running Python from: {sys.executable}")
 class ProcessManager:
     def __init__(self):
         self.processes = {}
+        self.apps = {}
 
-    def start_process(self, name, cmd):
-        """Start a process if it’s not already running."""
+    def start_process(self, name, cmd, cwd):
+        """Start a process with the correct working directory."""
         if name in self.processes and self.processes[name].poll() is None:
             print(f"{name} is already running.")
             return
 
-        print(f"Starting {name}...")
-        try:
-            self.processes[name] = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                stdin=subprocess.PIPE,
-                text=True
-            )
-            threading.Thread(target=self._monitor_process, args=(name,), daemon=True).start()
-        except Exception as e:
-            print(f"Failed to start {name}: {e}")
+        print(f"Starting {name} in {cwd}...")
+        self.processes[name] = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            text=True,
+            cwd=cwd  # Set working directory
+        )
+        threading.Thread(target=self._monitor_process, args=(name,), daemon=True).start()
 
     def _monitor_process(self, name):
         """Monitors process output and restarts it if it crashes."""
@@ -56,11 +56,11 @@ class ProcessManager:
         self.processes[name].wait()
         self.processes.pop(name, None)
 
-    def restart_process(self, name, command):
+    def restart_process(self, name, cmd, cwd):
         """Restarts a process."""
         self.stop_process(name)
         time.sleep(1)
-        self.start_process(name, command)
+        self.start_process(name, cmd, cwd)
 
     def send_command(self, name, cmd):
         """Send a command to a running process."""
@@ -87,13 +87,26 @@ if __name__ == "__main__":
 
     python_path = sys.executable  # Use the same Python PoopStrap is running
 
-    apps = {
-        "twitch_jam_sesh": [python_path, "C:\\Users\\Tommy\\PycharmProjects\\twitch_jam_sesh\\twitch.py"],
-        "trombone": [python_path, "C:\\Users\\Tommy\\PycharmProjects\\trombone\\twitch.py"],
-        "sierra": [python_path, "C:\\Users\\Tommy\\PycharmProjects\\sierra-v3\\sierra.py"]
+    manager.apps = {
+        "twitch_jam_sesh": {
+            "command": ["C:\\Users\\Tommy\\PycharmProjects\\twitch_jam_sesh\\venv\\Scripts\\python.exe",
+                        "C:\\Users\\Tommy\\PycharmProjects\\twitch_jam_sesh\\twitch.py"],
+            "cwd": "C:\\Users\\Tommy\\PycharmProjects\\twitch_jam_sesh"
+        },
+        "trombone": {
+            "command": ["C:\\Users\\Tommy\\PycharmProjects\\trombone\\venv\\Scripts\\python.exe",
+                        "C:\\Users\\Tommy\\PycharmProjects\\trombone\\twitch.py"],
+            "cwd": "C:\\Users\\Tommy\\PycharmProjects\\trombone"
+        },
+        "sierra": {
+            "command": [r"C:\Users\Tommy\PycharmProjects\sierra-v3\venv\Scripts\python.exe",
+                        "C:\\Users\\Tommy\\PycharmProjects\\sierra-v3\\sierra.py"],
+            "cwd": "C:\\Users\\Tommy\\PycharmProjects\\sierra-v3"
+        }
     }
-    #
-    # manager.start_process("twitch_bot", apps["twitch_bot"])
+
+    gui = PoopStrapGUI(manager)
+    gui.run()
 
     while True:
         manager.get_status()
@@ -111,16 +124,16 @@ if __name__ == "__main__":
         app_name = command[0]
         action = command[1] if len(command) > 1 else ""
 
-        if app_name not in apps:
+        if app_name not in manager.apps:
             print(f"Unknown application: {app_name}")
             continue
 
         if action == "start":
-            manager.start_process(app_name, apps[app_name])
+            manager.start_process(app_name, manager.apps[app_name]["command"], manager.apps[app_name]["cwd"])
         elif action == "stop":
             manager.stop_process(app_name)
         elif action == "restart":
-            manager.restart_process(app_name, apps[app_name])
+            manager.restart_process(app_name, manager.apps[app_name]["command"], manager.apps[app_name]["cwd"])
         elif action:
             manager.send_command(app_name, action)
         else:

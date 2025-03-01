@@ -68,7 +68,6 @@ websockets==13.1
 wsproto==1.2.0
 yarl==1.16.0
 yt-dlp==2024.10.22
-
 # Sierra
 audioread
 flask
