@@ -1,3 +1,4 @@
+import queue
 import subprocess
 import threading
 import time
@@ -8,10 +9,12 @@ from pront import pront
 
 print(f"Running Python from: {sys.executable}")
 
+
 class ProcessManager:
     def __init__(self):
         self.processes = {}
         self.apps = {}
+        self.output_queues = {}  # Store output queues per process
 
     def start_process(self, name, cmd, cwd):
         """Start a process with the correct working directory."""
@@ -28,22 +31,21 @@ class ProcessManager:
             text=True,
             cwd=cwd  # Set working directory
         )
+        self.output_queues[name] = queue.Queue()
         threading.Thread(target=self._monitor_process, args=(name,), daemon=True).start()
 
     def _monitor_process(self, name):
         """Monitors process output and restarts it if it crashes."""
         process = self.processes.get(name)
-        if not process:
-            return
+        queue_out = self.output_queues[name]
 
-        for line in process.stdout:
-            print(f"[{name}]: {line.strip()}")
+        def enqueue_output(pipe):
+            """Reads process output line-by-line and pushes it to a queue."""
+            for line in iter(pipe.readline, ''):
+                queue_out.put(line.strip())
 
-        for line in process.stderr:
-            print(f"[{name}]: {line.strip()}")
-
-        print(f"{name} has stopped.")
-        self.processes.pop(name, None)
+        threading.Thread(target=enqueue_output, args=(process.stdout,), daemon=True).start()
+        threading.Thread(target=enqueue_output, args=(process.stderr,), daemon=True).start()
 
     def stop_process(self, name):
         """Stops a running process."""

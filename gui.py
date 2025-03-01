@@ -53,13 +53,16 @@ class PoopStrapGUI:
             self.command_entry.delete(0, tk.END)
 
     def update_output(self):
-        self.output_text.delete(1.0, tk.END)
-        for name, process in self.manager.processes.items():
-            if process.poll() is None:
-                self.output_text.insert(tk.END, f"[{name}]: Running\n")
-            else:
-                self.output_text.insert(tk.END, f"[{name}]: Stopped\n")
-        self.root.after(1000, self.update_output)
+        """Continuously fetch output from the process queue and display it."""
+        if self.app_var.get() in self.manager.output_queues:
+            queue_out = self.manager.output_queues[self.app_var.get()]
+            while not queue_out.empty():
+                line = queue_out.get_nowait()
+                self.output_text.insert(tk.END, line + "\n")
+                self.output_text.see(tk.END)  # Scroll to the bottom
+
+        # Call this method again after a short delay
+        self.root.after(100, self.update_output)
 
     def run(self):
         self.root.mainloop()
