@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import scrolledtext
 from queue import Queue
+import ctypes
 
 
 class PoopStrapGUI:
@@ -9,10 +10,26 @@ class PoopStrapGUI:
         self.root = tk.Tk()
         self.root.title("PoopStrap")
         self.root.configure(bg="#2c2f33")
-        self.root.geometry("600x400")
+        self.root.geometry("600x450")
+        self.root.overrideredirect(True)  # Remove default title bar
 
-        # Main frame with padding and border
-        self.main_frame = tk.Frame(self.root, bg="#2c2f33", padx=10, pady=10, borderwidth=3, relief="solid")
+        # Custom title bar
+        self.title_bar = tk.Frame(self.root, bg="#2c2f33", relief="flat", bd=0)
+        self.title_bar.pack(fill=tk.X)
+
+        self.title_label = tk.Label(self.title_bar, text="PoopStrap", bg="#2c2f33", fg="white",
+                                    font=("Arial Black", 10))
+        self.title_label.pack(side=tk.LEFT, padx=10, pady=2)
+
+        self.close_button = tk.Button(self.title_bar, text="X", bg="#2c2f33", fg="white", command=self.root.destroy,
+                                      bd=0, relief="flat")
+        self.close_button.pack(side=tk.RIGHT, padx=5, pady=2)
+
+        self.title_bar.bind("<B1-Motion>", self.move_window)
+        self.title_bar.bind("<ButtonPress-1>", self.start_move)
+
+        # Main frame with padding and thinner border
+        self.main_frame = tk.Frame(self.root, bg="#1c1f22", padx=10, pady=10, relief="solid")
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Left column (app list)
@@ -31,7 +48,7 @@ class PoopStrapGUI:
 
         # Output text box
         self.output_box = scrolledtext.ScrolledText(self.right_frame, bg="#23272a", fg="white", wrap=tk.WORD, height=15,
-                                                    borderwidth=2, relief="solid")
+                                                    borderwidth=1, relief="solid")
         self.output_box.pack(fill=tk.BOTH, expand=True)
         self.output_box.config(state=tk.DISABLED)
         self.output_box.config(yscrollcommand=lambda *args: None)  # Hide scrollbar
@@ -43,15 +60,17 @@ class PoopStrapGUI:
 
         # Start/Stop/Restart buttons
         self.start_button = tk.Button(self.controls_frame, text="START", command=self.start_app, bg="#43b581",
-                                      fg="white", width=8, font=("Arial Black", 10, "bold"))
+                                      fg="white", width=8, font=("Arial Black", 10, "bold"), relief="flat",
+                                      borderwidth=2)
         self.start_button.pack(side=tk.LEFT, padx=5)
 
         self.stop_button = tk.Button(self.controls_frame, text="STOP", command=self.stop_app, bg="#f04747", fg="white",
-                                     width=8, font=("Arial Black", 10, "bold"))
+                                     width=8, font=("Arial Black", 10, "bold"), relief="flat", borderwidth=2)
         self.stop_button.pack(side=tk.LEFT, padx=5)
 
         self.restart_button = tk.Button(self.controls_frame, text="RESTART", command=self.restart_app, bg="#faa61a",
-                                        fg="white", width=8, font=("Arial Black", 10, "bold"))
+                                        fg="white", width=8, font=("Arial Black", 10, "bold"), relief="flat",
+                                        borderwidth=2)
         self.restart_button.pack(side=tk.LEFT, padx=5)
 
         # Command input and button
@@ -76,6 +95,13 @@ class PoopStrapGUI:
 
         self.update_output()
         self.root.mainloop()
+
+    def start_move(self, event):
+        self.x = event.x
+        self.y = event.y
+
+    def move_window(self, event):
+        self.root.geometry(f"+{event.x_root - self.x}+{event.y_root - self.y}")
 
     def add_app_button(self, app_name):
         button = tk.Button(self.app_list_frame, text=app_name, width=15, command=lambda: self.select_app(app_name),
