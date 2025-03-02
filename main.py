@@ -2,6 +2,7 @@ import subprocess
 import threading
 import time
 import sys
+from queue import Queue
 
 from gui import PoopStrapGUI
 from pront import pront
@@ -12,6 +13,7 @@ class ProcessManager:
     def __init__(self):
         self.processes = {}
         self.apps = {}
+        self.output_queues = {}
 
     def start_process(self, name, cmd, cwd):
         """Start a process with the correct working directory."""
@@ -28,6 +30,7 @@ class ProcessManager:
             text=True,
             cwd=cwd  # Set working directory
         )
+        self.output_queues[name] = Queue()
         threading.Thread(target=self._monitor_process, args=(name,), daemon=True).start()
 
     def _monitor_process(self, name):
@@ -37,12 +40,13 @@ class ProcessManager:
             return
 
         for line in process.stdout:
-            print(f"[{name}]: {line.strip()}")
+            self.output_queues[name].put(line.strip())
 
         for line in process.stderr:
             print(f"[{name}]: {line.strip()}")
 
         print(f"{name} has stopped.")
+        self.output_queues.pop(name, None)
         self.processes.pop(name, None)
 
     def stop_process(self, name):
